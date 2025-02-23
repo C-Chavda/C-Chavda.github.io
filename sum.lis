@@ -1,0 +1,124 @@
+     1                                  ; *******************************************************************************************************************************
+     2                                  ; Program name: "Arrays of Floating Point Numbers". This program takes user inputs of floating point numbers and places them into an array.
+     3                                  ; Copyright (C) 2025  Jonathan Diep                                                                                             *
+     4                                  ;                                                                                                                               *
+     5                                  ; This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License    *
+     6                                  ; as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.        *
+     7                                  ; This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty  *
+     8                                  ; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.                *
+     9                                  ; You should have received a copy of the GNU General Public License along with this program. If not, see                       *
+    10                                  ; <https://www.gnu.org/licenses/>.                                                                                             *
+    11                                  ; *******************************************************************************************************************************
+    12                                  
+    13                                  ;========1=========2=========3=========4=========5=========6=========7=========8=========9=========0=========1=========2=========3**
+    14                                  ; Author information
+    15                                  ;   Author name: Chandesh Chavda
+    16                                  ;   Author email: chav349@csu.fullerton.edu
+    17                                  ;   CWID: 885158899
+    18                                  ;   Class: 240-11 Section 11
+    19                                  ;
+    20                                  ; Program information
+    21                                  ;   Program name: Arrays of Floating Point Numbers
+    22                                  ;   Programming language: X86-64 Assembly
+    23                                  ;   Date program began: 2025-Feb-22
+    24                                  ;   Date of last update: 2025-Feb-22
+    25                                  ;   Files in this program: main.c, manager.asm, input_array.asm, output_array.asm, sum.asm, sort.asm, swap.asm, isfloat.asm, run.sh.
+    26                                  ;   Testing: Alpha testing completed. All functions are correct.
+    27                                  ;   Status: Ready for release to customers
+    28                                  ;
+    29                                  ; Purpose
+    30                                  ;   This program takes user inputs of floating point numbers and places them into an array.
+    31                                  ;   It calculates the sum, mean, and sorts the array. The swap function is used during sorting to exchange two values in the array.
+    32                                  ;
+    33                                  ; This file:
+    34                                  ;   File name: swap.asm
+    35                                  ;   Language: X86-64 Assembly
+    36                                  ;   Max page width: 124 columns
+    37                                  ;   Assemble (standard): nasm -f elf64 -l swap.lis -o swap.o swap.asm
+    38                                  ;   Assemble (debug): nasm -f elf64 -gdwarf -l swap.lis -o swap.o swap.asm
+    39                                  ;   Optimal print specification: Landscape, 7 points, monospace, 8½x11 paper
+    40                                  ;   Prototype of this function: extern double swap();
+    41                                  ;
+    42                                  ; Notes:
+    43                                  ;   This file contains the assembly module for the "Arrays of Floating Point Numbers" program, specifically the swap function.
+    44                                  ;   The swap function exchanges two floating point values in the array during the sorting process.
+    45                                  ;
+    46                                  ;===== Begin code area ==========================================================================================================
+    47                                  
+    48                                  ; Declarations
+    49                                  extern printf
+    50                                  
+    51                                  global sum
+    52                                  
+    53                                  section .data
+    54                                  
+    55                                  section .bss
+    56                                      align 64
+    57 00000000 <res 00000340>              backup_storage_area resb 832   ; To backup the registers for context switching
+    58                                  
+    59                                  section .text
+    60                                  sum:
+    61                                      ; Backup general-purpose registers (GPRs)
+    62 00000000 55                          push rbp
+    63 00000001 4889E5                      mov rbp, rsp
+    64 00000004 53                          push rbx
+    65 00000005 51                          push rcx
+    66 00000006 52                          push rdx
+    67 00000007 57                          push rdi
+    68 00000008 56                          push rsi
+    69 00000009 4150                        push r8
+    70 0000000B 4151                        push r9
+    71 0000000D 4152                        push r10
+    72 0000000F 4153                        push r11
+    73 00000011 4154                        push r12
+    74 00000013 4155                        push r13
+    75 00000015 4156                        push r14
+    76 00000017 4157                        push r15
+    77 00000019 9C                          pushf
+    78                                  
+    79                                      ; Backup other registers
+    80 0000001A B807000000                  mov rax, 7
+    81 0000001F BA00000000                  mov rdx, 0
+    82 00000024 0FAE2425[00000000]          xsave [backup_storage_area]   ; Save state of registers to backup
+    83                                  
+    84                                      ; Store array address (rdi) and array length (rsi)
+    85 0000002C 4989FC                      mov r12, rdi   ; r12 contains the address of the array
+    86 0000002F 4989F5                      mov r13, rsi   ; r13 contains the length of the array
+    87                                    ; Initialize counter (r14) to 0
+    88 00000032 41BE00000000                mov r14, 0  ; r14 is the loop counter
+    89                                  
+    90                                  
+    91                                    
+    92                                  sum_loop:
+    93                                  
+    94                                      ; Add the current array element to xmm9 (accumulating sum)
+    95 00000038 4883EC08                    sub rsp, 8
+    96 0000003C F2470F103CF4                movsd xmm15, [r12 + r14*8]
+    97 00000042 F2450F58F7                  addsd xmm14, xmm15
+    98 00000047 4883C408                    add rsp, 8
+    99                                      ; Increment the counter
+   100 0000004B 49FFC6                      inc r14
+   101 0000004E 4D39EE                      cmp r14, r13
+   102 00000051 7CE5                        jl sum_loop   ; Repeat the loop
+   103 00000053 7F00                        jg sum_exit
+   104                                  
+   105                                  sum_exit:
+   106 00000055 F2410F10C6                movsd xmm0, xmm14
+   107                                      ; Restore the registers (stack cleanup)
+   108 0000005A 9D                          popf
+   109 0000005B 415F                        pop r15
+   110 0000005D 415E                        pop r14
+   111 0000005F 415D                        pop r13
+   112 00000061 415C                        pop r12
+   113 00000063 415B                        pop r11
+   114 00000065 415A                        pop r10
+   115 00000067 4159                        pop r9
+   116 00000069 4158                        pop r8
+   117 0000006B 5E                          pop rsi
+   118 0000006C 5F                          pop rdi
+   119 0000006D 5A                          pop rdx
+   120 0000006E 59                          pop rcx
+   121 0000006F 5B                          pop rbx
+   122 00000070 5D                          pop rbp  ; Restore rbp to the base of the activation record
+   123                                  
+   124 00000071 C3                          ret   ; Return from function

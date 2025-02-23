@@ -1,0 +1,214 @@
+     1                                  ; *******************************************************************************************************************************
+     2                                  ; Program name: "Arrays of Floating Point Numbers". This program takes user inputs of floating point numbers and places them into an array.
+     3                                  ; Copyright (C) 2025  Jonathan Diep                                                                                             *
+     4                                  ;                                                                                                                               *
+     5                                  ; This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License    *
+     6                                  ; as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.        *
+     7                                  ; This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty  *
+     8                                  ; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.                *
+     9                                  ; You should have received a copy of the GNU General Public License along with this program. If not, see                       *
+    10                                  ; <https://www.gnu.org/licenses/>.                                                                                             *
+    11                                  ; *******************************************************************************************************************************
+    12                                  
+    13                                  ;========1=========2=========3=========4=========5=========6=========7=========8=========9=========0=========1=========2=========3**
+    14                                  ; Author information
+    15                                  ;   Author name: Chandresh Chavda
+    16                                  ;   Author email: chav349@csu.fullerton.edu
+    17                                  ;   CWID: 885158899
+    18                                  ;   Class: 240-11 Section 11
+    19                                  ;
+    20                                  ; Program information
+    21                                  ;   Program name: Arrays of Floating Point Numbers
+    22                                  ;   Programming language: X86-64 Assembly
+    23                                  ;   Date program began: 2025-Feb-22
+    24                                  ;   Date of last update: 2025-Feb-22
+    25                                  ;   Files in this program: main.c, manager.asm, input_array.asm, output_array.asm, sum.asm, sort.asm, swap.asm, isfloat.asm, run.sh.
+    26                                  ;   Testing: Alpha testing completed. All functions are correct.
+    27                                  ;   Status: Ready for release to customers
+    28                                  ;
+    29                                  ; Purpose
+    30                                  ;   This program takes user inputs of floating point numbers and places them into an array.
+    31                                  ;   The input_array function is responsible for gathering the input numbers from the user and storing them in the array.
+    32                                  ;
+    33                                  ; This file:
+    34                                  ;   File name: input_array.asm
+    35                                  ;   Language: X86-64 Assembly
+    36                                  ;   Max page width: 124 columns
+    37                                  ;   Assemble (standard): nasm -f elf64 -l input_array.lis -o input_array.o input_array.asm
+    38                                  ;   Assemble (debug): nasm -f elf64 -gdwarf -l input_array.lis -o input_array.o input_array.asm
+    39                                  ;   Optimal print specification: Landscape, 7 points, monospace, 8½x11 paper
+    40                                  ;   Prototype of this function: extern double input_array();
+    41                                  ;
+    42                                  ; Notes:
+    43                                  ;   This file contains the assembly module for the "Arrays of Floating Point Numbers" program, specifically the input_array function.
+    44                                  ;   The input_array function prompts the user for a series of floating point numbers, validates the inputs, and places the valid values into the array.
+    45                                  ;
+    46                                  ;===== Begin code area ==========================================================================================================
+    47                                  
+    48                                  ;declarations
+    49                                  
+    50                                  extern printf
+    51                                  
+    52                                  extern scanf
+    53                                  
+    54                                  extern atof
+    55                                  
+    56                                  extern isfloat
+    57                                  
+    58                                  global input_array
+    59                                  
+    60                                  
+    61                                  segment .data                 ;Place initialized data here
+    62 00000000 257300                    floatformat db "%s", 0
+    63 00000003 546865206C61737420-       not_a_float db "The last input was invalid and not entered into the array", 10, 0
+    63 0000000C 696E70757420776173-
+    63 00000015 20696E76616C696420-
+    63 0000001E 616E64206E6F742065-
+    63 00000027 6E746572656420696E-
+    63 00000030 746F20746865206172-
+    63 00000039 7261790A00         
+    64 0000003E 546865206172726179-       full_message db "The array has been filled.", 10, 0
+    64 00000047 20686173206265656E-
+    64 00000050 2066696C6C65642E0A-
+    64 00000059 00                 
+    65                                  
+    66                                  
+    67                                  segment .bss      ;Declare pointers to un-initialized space in this segment.
+    68                                    align 64
+    69 00000000 <res 00000340>            backup_storage_area resb 832
+    70                                    
+    71                                  segment .text
+    72                                  input_array:
+    73                                  
+    74                                  ;backup GPRs
+    75 00000000 55                      push rbp
+    76 00000001 4889E5                  mov rbp, rsp
+    77 00000004 53                      push rbx
+    78 00000005 51                      push rcx
+    79 00000006 52                      push rdx
+    80 00000007 57                      push rdi
+    81 00000008 56                      push rsi
+    82 00000009 4150                    push r8
+    83 0000000B 4151                    push r9
+    84 0000000D 4152                    push r10
+    85 0000000F 4153                    push r11
+    86 00000011 4154                    push r12
+    87 00000013 4155                    push r13
+    88 00000015 4156                    push r14
+    89 00000017 4157                    push r15
+    90 00000019 9C                      pushf
+    91                                  
+    92                                  ;backup other registers/sse registers
+    93 0000001A B807000000              mov rax,7
+    94 0000001F BA00000000              mov rdx,0
+    95 00000024 0FAE2425[00000000]      xsave [backup_storage_area]
+    96                                  
+    97                                  ;store array address and array max size in non-volatile registers to use when inputting values into array as well as ensuring the number of values stays within the maximum
+    98 0000002C 4989FF                  mov r15, rdi
+    99 0000002F 4989F6                  mov r14, rsi
+   100                                  
+   101                                  
+   102                                  ;set r13 to zero in order to use as a counter for the float point numbers for both array length and to ensure the number of values is within the limits
+   103 00000032 41BD00000000            mov r13, 0
+   104                                  
+   105                                  ;ensure the number of values in the array are within its maximum size
+   106                                  check_capacity:
+   107                                  ;compare the counter to the max array size and jump to is_less for user float number inputs if array is not full yet, otherwise jump to is_full for function end
+   108 00000038 4D39F5                  cmp r13, r14
+   109 0000003B 7C02                    jl is_less
+   110                                  ; if counter greater/equal to array max size then jump to is_full function for function end
+   111 0000003D EB52                    jmp is_full
+   112                                  
+   113                                  ; if number of values in the array is still less than size of array jump here to allow user to input floats
+   114                                  is_less:
+   115                                  ;make room on the stack then obtain user's floating point number input to put into the array
+   116 0000003F 6A00                    push qword 0
+   117 00000041 6A00                    push qword 0
+   118 00000043 B800000000              mov rax, 0
+   119 00000048 48BF-                   mov rdi, floatformat
+   119 0000004A [0000000000000000] 
+   120 00000052 4889E6                  mov rsi, rsp
+   121 00000055 E8(00000000)            call scanf
+   122                                  
+   123                                  ;check whether user has input control+d in order to end the function/stop inputting values into function
+   124 0000005A 4898                    cdqe
+   125 0000005C 4883F8FF                cmp rax, -1
+   126 00000060 7462                    je control_d
+   127                                  
+   128                                  ; Check if user's input is a valid float, jumping to not_float to send user an error message and allow them to try again
+   129 00000062 4889E7                  mov rdi, rsp
+   130 00000065 E8(00000000)            call isfloat
+   131 0000006A 4883F800                cmp rax, 0
+   132 0000006E 7437                    je  not_float
+   133                                  
+   134                                  ;convert the floating point number in the string into a float value after checking it is valid
+   135                                  ;Setting up atof
+   136 00000070 B800000000              mov rax, 0
+   137 00000075 4889E7                  mov rdi, rsp
+   138 00000078 E8(00000000)            call atof
+   139 0000007D F2440F10F8              movsd xmm15, xmm0
+   140 00000082 4159                    pop r9
+   141 00000084 4159                    pop r9
+   142                                  
+   143                                  ;store the floating point number into its own address, the counters index in the array
+   144 00000086 F2470F113CEF            movsd [r15+r13*8], xmm15
+   145                                  
+   146                                  ;increase the counter for array size/number of values inputted so far, then jump back to check_capacity to allow user to continue inputting float numbers if the array is not yet full
+   147 0000008C 49FFC5                  inc r13
+   148 0000008F EBA7                    jmp check_capacity
+   149                                  
+   150                                  ;jump here if capacity of the array has been met/number of array values have reached the maximum size
+   151                                  is_full:
+   152                                  ;inform user that the array is now full, before jumping to function end
+   153 00000091 B800000000              mov rax, 0
+   154 00000096 48BF-                   mov rdi, full_message
+   154 00000098 [3E00000000000000] 
+   155 000000A0 E8(00000000)            call printf
+   156 000000A5 EB23                    jmp exit
+   157                                  
+   158                                  ;jump here if the user has not inputted a valid floating point number
+   159                                  not_float:
+   160                                  ;inform user that the input is invalid and will not be counted, before jumping back to is_less to allow the user to try again
+   161 000000A7 B800000000              mov rax, 0
+   162 000000AC 48BF-                   mov rdi, not_a_float
+   162 000000AE [0300000000000000] 
+   163 000000B6 E8(00000000)            call printf
+   164 000000BB 4159                    pop r9
+   165 000000BD 4159                    pop r9
+   166 000000BF E97BFFFFFF              jmp is_less
+   167                                  
+   168                                  ;jump here if user inputs control+d to end their input of floats
+   169                                  control_d:
+   170                                  ;pop values off stack to avoid segmentation fault before going to function end
+   171 000000C4 4159                    pop r9
+   172 000000C6 4159                    pop r9
+   173 000000C8 EB00                    jmp exit
+   174                                  
+   175                                  ;restore registers and send array length back to manager for use in other functions
+   176                                  exit:
+   177                                  ;restore the values to non-GPRs/sse registers
+   178 000000CA B807000000              mov rax,7
+   179 000000CF BA00000000              mov rdx,0
+   180 000000D4 0FAE2C25[00000000]      xrstor [backup_storage_area]
+   181                                  
+   182                                  ;store the length of the array/float counter into rax to be sent back to manager
+   183 000000DC 4C89E8                  mov rax, r13
+   184                                  
+   185                                  ;Restore the GPRs
+   186 000000DF 9D                      popf
+   187 000000E0 415F                    pop r15
+   188 000000E2 415E                    pop r14
+   189 000000E4 415D                    pop r13
+   190 000000E6 415C                    pop r12
+   191 000000E8 415B                    pop r11
+   192 000000EA 415A                    pop r10
+   193 000000EC 4159                    pop r9
+   194 000000EE 4158                    pop r8
+   195 000000F0 5E                      pop rsi
+   196 000000F1 5F                      pop rdi
+   197 000000F2 5A                      pop rdx
+   198 000000F3 59                      pop rcx
+   199 000000F4 5B                      pop rbx
+   200 000000F5 5D                      pop rbp   ;Restore rbp to the base of the activation record of the caller program
+   201 000000F6 C3                      ret
+   202                                  ;End of the function input_array =============================
